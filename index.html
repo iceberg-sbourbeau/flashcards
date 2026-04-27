@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flashcards</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 2rem 1rem;
+    }
+
+    #app {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    h1 { font-size: 1.8rem; margin-bottom: 1.5rem; color: #4ecdc4; }
+    h2 { font-size: 1.3rem; margin-bottom: 1rem; color: #e0e0e0; }
+
+    a { color: #4ecdc4; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .back-link { display: inline-block; margin-bottom: 1rem; font-size: 0.9rem; }
+
+    button {
+      background: #4ecdc4;
+      color: #1a1a2e;
+      border: none;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+    }
+    button:hover { background: #45b7aa; }
+    button:active { opacity: 0.8; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-danger:hover { background: #c0392b; }
+
+    .btn-secondary { background: #3a3a5c; color: #e0e0e0; }
+    .btn-secondary:hover { background: #4a4a6c; }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      background: #16213e;
+      color: #e0e0e0;
+      border: 1px solid #3a3a5c;
+      border-radius: 6px;
+      padding: 0.6rem;
+      font-size: 0.95rem;
+      font-family: inherit;
+      resize: vertical;
+    }
+    textarea:focus, input[type="text"]:focus {
+      outline: none;
+      border-color: #4ecdc4;
+    }
+    textarea { min-height: 80px; }
+
+    .form-group { margin-bottom: 1rem; }
+    .form-group label { display: block; margin-bottom: 0.3rem; font-size: 0.85rem; color: #aaa; }
+
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 3rem 1rem;
+      font-size: 1rem;
+    }
+
+    /* Project list */
+    .project-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #16213e;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.6rem;
+      transition: background 0.15s;
+    }
+    .project-item:hover { background: #1a2744; }
+    .project-item a { font-weight: 600; flex: 1; }
+    .project-item .card-count { color: #888; font-size: 0.85rem; }
+    .project-actions { display: flex; gap: 0.6rem; flex-shrink: 0; }
+    .project-item button { padding: 0.3rem 0.7rem; font-size: 0.8rem; }
+
+    /* Inline create form */
+    .inline-create { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    .inline-create input { flex: 1; }
+
+    /* Card list */
+    .card-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #16213e;
+      border-radius: 6px;
+      padding: 0.7rem 1rem;
+      margin-bottom: 0.4rem;
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    .card-item-text {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .card-item-text:hover { color: #4ecdc4; }
+    .card-item-actions { display: flex; gap: 0.4rem; flex-shrink: 0; margin-left: 0.5rem; }
+    .card-item-actions button { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+
+    /* Project two-column layout */
+    .project-layout { display: flex; flex-direction: column; }
+    .project-sidebar { order: 2; }
+    .project-main { order: 1; }
+
+    @media (min-width: 768px) {
+      .project-layout { flex-direction: row; gap: 2rem; }
+      .project-sidebar { order: 1; flex: 1; min-width: 0; }
+      .project-main { order: 2; flex: 1; }
+    }
+
+    /* Study card */
+    .study-progress {
+      text-align: center;
+      color: #888;
+      margin-bottom: 1.5rem;
+      font-size: 1rem;
+    }
+
+    .card-scene {
+      -webkit-perspective: 800px;
+      perspective: 800px;
+      margin-bottom: 1.5rem;
+    }
+
+    .card {
+      width: 100%;
+      min-height: 250px;
+      position: relative;
+      transition: transform 0.5s;
+      -webkit-transform-style: preserve-3d;
+      transform-style: preserve-3d;
+    }
+    .card.is-flipped { transform: rotateY(180deg); }
+
+    .card-face {
+      position: absolute;
+      top: 0; right: 0; bottom: 0; left: 0;
+      -webkit-backface-visibility: hidden;
+      backface-visibility: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      border-radius: 12px;
+      font-size: 1.15rem;
+      line-height: 1.5;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .card-front { background: #16213e; }
+    .card-back {
+      background: #0f3460;
+      transform: rotateY(180deg);
+    }
+
+    .study-actions {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    /* Done view */
+    .done-view {
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+    .done-view h2 { font-size: 1.5rem; margin-bottom: 0.5rem; color: #4ecdc4; }
+    .done-view p { color: #aaa; margin-bottom: 2rem; font-size: 1.1rem; }
+    .done-view .actions { display: flex; justify-content: center; gap: 1rem; }
+
+    /* Add card form spacing */
+    .add-card-form { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid #3a3a5c; }
+    .add-card-form button { margin-top: 0.5rem; }
+
+    .project-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+    .project-header h2 { margin-bottom: 0; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script>
+    // --- Storage ---
+    function loadData() {
+      try {
+        return JSON.parse(localStorage.getItem('flashcards_data')) || { projects: [] };
+      } catch (e) {
+        return { projects: [] };
+      }
+    }
+
+    function saveData(data) {
+      localStorage.setItem('flashcards_data', JSON.stringify(data));
+    }
+
+    function uuid() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0;
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+      });
+    }
+
+    function escapeHtml(str) {
+      var div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    function findById(arr, id) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id === id) return arr[i];
+      }
+      return null;
+    }
+
+    function filterOut(arr, id) {
+      var result = [];
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i].id !== id) result.push(arr[i]);
+      }
+      return result;
+    }
+
+    // --- Router ---
+    function navigate(hash) {
+      window.location.hash = hash;
+    }
+
+    function getRoute() {
+      var hash = window.location.hash.slice(1) || 'home';
+      var parts = hash.split('/');
+      return { view: parts[0], id: parts[1] };
+    }
+
+    function render() {
+      var route = getRoute();
+      var app = document.getElementById('app');
+      switch (route.view) {
+        case 'project': renderProject(app, route.id); break;
+        case 'study':   renderStudy(app, route.id);   break;
+        case 'done':    renderDone(app, route.id);     break;
+        default:        renderHome(app);               break;
+      }
+    }
+
+    // --- Study state ---
+    var studyCards = [];
+    var studyIndex = 0;
+
+    function shuffleArray(arr) {
+      var a = arr.slice();
+      for (var i = a.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = a[i];
+        a[i] = a[j];
+        a[j] = tmp;
+      }
+      return a;
+    }
+
+    // --- Views ---
+
+    function renderHome(app) {
+      var data = loadData();
+      var html = '<h1>Flashcards</h1>';
+
+      html += '<div id="create-section" style="margin-bottom:1.5rem"><button id="new-project-btn">+ New Project</button></div>';
+      html += '<div id="create-form" style="display:none" class="inline-create">';
+      html += '<input type="text" id="project-name" placeholder="Project name..." />';
+      html += '<button id="create-btn">Create</button>';
+      html += '<button class="btn-secondary" id="cancel-btn">Cancel</button>';
+      html += '</div>';
+
+      if (data.projects.length === 0) {
+        html += '<p class="empty-state">No projects yet. Create one to get started.</p>';
+      } else {
+        for (var i = 0; i < data.projects.length; i++) {
+          var p = data.projects[i];
+          html += '<div class="project-item">';
+          html += '<a href="#project/' + p.id + '">' + escapeHtml(p.name) + ' <span class="card-count">(' + p.cards.length + ')</span></a>';
+          html += '<div class="project-actions"><button class="study-btn" data-id="' + p.id + '" ' + (p.cards.length === 0 ? 'disabled' : '') + '>Study</button>';
+          html += '<button class="btn-danger delete-btn" data-id="' + p.id + '" title="Delete">&times;</button></div>';
+          html += '</div>';
+        }
+      }
+
+      app.innerHTML = html;
+
+      document.getElementById('new-project-btn').addEventListener('click', function() {
+        document.getElementById('create-section').style.display = 'none';
+        document.getElementById('create-form').style.display = 'flex';
+        document.getElementById('project-name').focus();
+      });
+
+      document.getElementById('cancel-btn').addEventListener('click', function() {
+        document.getElementById('create-section').style.display = '';
+        document.getElementById('create-form').style.display = 'none';
+      });
+
+      document.getElementById('create-btn').addEventListener('click', function() {
+        var name = document.getElementById('project-name').value.trim();
+        if (!name) return;
+        var data = loadData();
+        data.projects.push({ id: uuid(), name: name, createdAt: new Date().toISOString(), cards: [] });
+        saveData(data);
+        render();
+      });
+
+      document.getElementById('project-name').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') document.getElementById('create-btn').click();
+      });
+
+      var studyBtns = document.querySelectorAll('.study-btn');
+      for (var i = 0; i < studyBtns.length; i++) {
+        (function(btn) {
+          btn.addEventListener('click', function() { navigate('study/' + btn.dataset.id); });
+        })(studyBtns[i]);
+      }
+
+      var deleteBtns = document.querySelectorAll('.delete-btn');
+      for (var i = 0; i < deleteBtns.length; i++) {
+        (function(btn) {
+          btn.addEventListener('click', function() {
+            if (!confirm('Delete this project and all its cards?')) return;
+            var data = loadData();
+            data.projects = filterOut(data.projects, btn.dataset.id);
+            saveData(data);
+            render();
+          });
+        })(deleteBtns[i]);
+      }
+    }
+
+    function renderProject(app, id) {
+      var data = loadData();
+      var project = findById(data.projects, id);
+      if (!project) { navigate('home'); return; }
+
+      var html = '<a href="#home" class="back-link">&larr; All Projects</a>';
+
+      html += '<div class="project-header">';
+      html += '<h2>' + escapeHtml(project.name) + ' <span class="card-count">(' + project.cards.length + ' card' + (project.cards.length !== 1 ? 's' : '') + ')</span></h2>';
+      html += '<button id="study-btn" ' + (project.cards.length === 0 ? 'disabled' : '') + '>Study</button>';
+      html += '</div>';
+
+      html += '<div class="project-layout">';
+
+      // Sidebar: card list
+      html += '<div class="project-sidebar">';
+      html += '<h3 style="margin-bottom:0.8rem;font-size:1rem;color:#aaa">Cards</h3>';
+      if (project.cards.length > 0) {
+        for (var i = 0; i < project.cards.length; i++) {
+          var c = project.cards[i];
+          html += '<div class="card-item">';
+          html += '<span class="card-item-text edit-card-btn" data-id="' + c.id + '">' + escapeHtml(c.question) + '</span>';
+          html += '<div class="card-item-actions">';
+          html += '<button class="btn-secondary edit-card-btn" data-id="' + c.id + '">Edit</button>';
+          html += '<button class="btn-danger delete-card-btn" data-id="' + c.id + '" title="Delete">&times;</button>';
+          html += '</div></div>';
+        }
+      } else {
+        html += '<p class="empty-state" style="padding:1rem">No cards yet.</p>';
+      }
+      html += '</div>';
+
+      // Main: form + study
+      html += '<div class="project-main">';
+      html += '<div class="add-card-form" id="card-form">';
+      html += '<div class="form-group"><label for="q">Question</label><textarea id="q" placeholder="Enter question..."></textarea></div>';
+      html += '<div class="form-group"><label for="a">Answer</label><textarea id="a" placeholder="Enter answer..."></textarea></div>';
+      html += '<button id="save-card-btn">Save Card</button>';
+      html += '<button id="cancel-edit-btn" class="btn-secondary" style="display:none;margin-left:0.5rem">Cancel</button>';
+      html += '</div>';
+      html += '</div>';
+
+      html += '</div>'; // close project-layout
+
+      app.innerHTML = html;
+
+      var editingCardId = null;
+
+      document.getElementById('save-card-btn').addEventListener('click', function() {
+        var q = document.getElementById('q').value.trim();
+        var a = document.getElementById('a').value.trim();
+        if (!q || !a) return;
+        var data = loadData();
+        var project = findById(data.projects, id);
+        if (editingCardId) {
+          var card = findById(project.cards, editingCardId);
+          card.question = q;
+          card.answer = a;
+        } else {
+          project.cards.push({ id: uuid(), question: q, answer: a });
+        }
+        saveData(data);
+        render();
+      });
+
+      document.getElementById('cancel-edit-btn').addEventListener('click', function() {
+        editingCardId = null;
+        document.getElementById('q').value = '';
+        document.getElementById('a').value = '';
+        document.getElementById('save-card-btn').textContent = 'Save Card';
+        document.getElementById('cancel-edit-btn').style.display = 'none';
+      });
+
+      var editBtns = document.querySelectorAll('.edit-card-btn');
+      for (var i = 0; i < editBtns.length; i++) {
+        (function(btn) {
+          btn.addEventListener('click', function() {
+            var card = findById(project.cards, btn.dataset.id);
+            if (!card) return;
+            editingCardId = card.id;
+            document.getElementById('q').value = card.question;
+            document.getElementById('a').value = card.answer;
+            document.getElementById('save-card-btn').textContent = 'Update Card';
+            document.getElementById('cancel-edit-btn').style.display = '';
+            document.getElementById('q').focus();
+          });
+        })(editBtns[i]);
+      }
+
+      var delCardBtns = document.querySelectorAll('.delete-card-btn');
+      for (var i = 0; i < delCardBtns.length; i++) {
+        (function(btn) {
+          btn.addEventListener('click', function() {
+            if (!confirm('Delete this card?')) return;
+            var data = loadData();
+            var project = findById(data.projects, id);
+            project.cards = filterOut(project.cards, btn.dataset.id);
+            saveData(data);
+            render();
+          });
+        })(delCardBtns[i]);
+      }
+
+      document.getElementById('study-btn').addEventListener('click', function() {
+        navigate('study/' + id);
+      });
+    }
+
+    function renderStudy(app, id) {
+      var data = loadData();
+      var project = findById(data.projects, id);
+      if (!project || project.cards.length === 0) { navigate('project/' + id); return; }
+
+      if (studyCards.length === 0 || studyCards[0]._projectId !== id) {
+        var shuffled = shuffleArray(project.cards);
+        studyCards = [];
+        for (var i = 0; i < shuffled.length; i++) {
+          var copy = { id: shuffled[i].id, question: shuffled[i].question, answer: shuffled[i].answer, _projectId: id };
+          studyCards.push(copy);
+        }
+        studyIndex = 0;
+      }
+
+      var card = studyCards[studyIndex];
+      var total = studyCards.length;
+
+      var html = '<a href="#home" class="back-link">&larr; Back to Projects</a>';
+      html += '<div class="study-progress">' + (studyIndex + 1) + ' / ' + total + '</div>';
+
+      html += '<div class="card-scene">';
+      html += '<div class="card" id="study-card">';
+      html += '<div class="card-face card-front">' + escapeHtml(card.question) + '</div>';
+      html += '<div class="card-face card-back">' + escapeHtml(card.answer) + '</div>';
+      html += '</div></div>';
+
+      html += '<div class="study-actions">';
+      html += '<button class="btn-secondary" id="quit-btn">Back to Projects</button>';
+      html += '<button id="flip-btn">Show Answer</button>';
+      html += '<button id="next-btn" style="display:none">Next</button>';
+      html += '</div>';
+
+      app.innerHTML = html;
+
+      document.getElementById('flip-btn').addEventListener('click', function() {
+        document.getElementById('study-card').classList.add('is-flipped');
+        document.getElementById('flip-btn').style.display = 'none';
+        document.getElementById('next-btn').style.display = '';
+      });
+
+      document.getElementById('quit-btn').addEventListener('click', function() {
+        studyCards = [];
+        studyIndex = 0;
+        navigate('home');
+      });
+
+      document.getElementById('next-btn').addEventListener('click', function() {
+        studyIndex++;
+        if (studyIndex >= studyCards.length) {
+          studyCards = [];
+          studyIndex = 0;
+          navigate('done/' + id);
+        } else {
+          render();
+        }
+      });
+    }
+
+    function renderDone(app, id) {
+      var data = loadData();
+      var project = findById(data.projects, id);
+      if (!project) { navigate('home'); return; }
+
+      var html = '<div class="done-view">';
+      html += '<h2>Session Complete!</h2>';
+      html += '<p>You studied ' + project.cards.length + ' card' + (project.cards.length !== 1 ? 's' : '') + '.</p>';
+      html += '<div class="actions">';
+      html += '<button id="again-btn">Study Again</button>';
+      html += '<button class="btn-secondary" id="back-btn">Back to Projects</button>';
+      html += '</div></div>';
+
+      app.innerHTML = html;
+
+      document.getElementById('again-btn').addEventListener('click', function() {
+        studyCards = [];
+        studyIndex = 0;
+        navigate('study/' + id);
+      });
+
+      document.getElementById('back-btn').addEventListener('click', function() {
+        navigate('home');
+      });
+    }
+
+    // --- Init ---
+    window.addEventListener('hashchange', render);
+    render();
+  </script>
+</body>
+</html>
